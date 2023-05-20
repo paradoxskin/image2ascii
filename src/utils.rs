@@ -11,32 +11,35 @@ use std::sync::Mutex;
 use std::sync::Arc;
 
 pub struct Show {
-	screen_weight: u32,
+	screen_width: u32,
 	screen_height: u32,
 	now: Vec<Vec<Node>>,
 }
 
 impl Show {
+
 	const FPS: u8 = 30;
+
 	pub fn init() -> Self {
 		let (a, b) = termion::terminal_size().unwrap();
-		let (screen_weight, screen_height) = (a as u32, b as u32);
+		let (screen_width, screen_height) = (a as u32, b as u32);
 		let mut now: Vec<Vec<Node>> = Vec::new();
 		for _ in 0..screen_height {
 			let mut tmp_vec = Vec::<Node>::new();
-			for _ in 0..screen_weight {
-				tmp_vec.push(Node::init((0, 0, 0), 0, (2333, 2333)));
+			for _ in 0..screen_width {
+				tmp_vec.push(Node::init((0, 0, 0), 0, (0, 0)));
 			}
 			now.push(tmp_vec);
 		}
+		println!("{}少女祈祷中...", termion::clear::All);
 		Show {
-			screen_weight,
+			screen_width,
 			screen_height,
 			now,
 		}
 	}
 	pub fn get_size(&self) -> (u32, u32) {
-		(self.screen_weight, self.screen_height)
+		(self.screen_width, self.screen_height)
 	}
 
 	pub fn run(&mut self, imgs: Arc<Mutex<Readd>>) {
@@ -46,7 +49,7 @@ impl Show {
 		print!("{}{}", termion::clear::All, cursor::Hide);
 		loop {
 			let begin = time::Instant::now();
-			if self.play_next_frame(&mut writer, imgs.clone()) {
+			if self.play_next_frame_pro(&mut writer, imgs.clone()) {
 				break;
 			}
 			writer.flush().unwrap();
@@ -59,18 +62,15 @@ impl Show {
 		println!("{}{}{}", cursor::Show, color::Bg(color::Reset), color::Fg(color::Reset));
 	}
 
-	fn play_next_frame(&mut self, writer: &mut BufWriter<Stdout>, imgs: Arc<Mutex<Readd>>) -> bool {
+	fn play_next_frame_pro(&mut self, writer: &mut BufWriter<Stdout>, imgs: Arc<Mutex<Readd>>) -> bool {
 		let imgs = imgs.lock().unwrap();
 		let opt_next_frame = imgs.get_fron();
 		if let Some(next_frame) = opt_next_frame {
-			for x in 0..next_frame[0].len() {
-				for y in 0..next_frame.len() {
-					if self.now[y][x] == next_frame[y][x] {
-						continue;
-					}
-					self.now[y][x] = next_frame[y][x].clone();
-					self.now[y][x].write(writer);
-				}
+			for upd in next_frame {
+				let (x, y) = upd.pos;
+				let (x, y) = (x as usize, y as usize);
+				self.now[y][x] = upd.clone();
+				self.now[y][x].write(writer);
 			}
 			return false;
 		}
@@ -110,23 +110,24 @@ impl Node {
 }
 
 pub struct Readd {
-	cargo: Arc<Mutex<VecDeque<Vec<Vec<Node>>>>>,
+	cargo: Arc<Mutex<VecDeque<Vec<Node>>>>,
 }
 
 impl Readd {
 	pub fn init() -> Self {
-		let cargo: Arc<Mutex<VecDeque<Vec<Vec<Node>>>>> = Arc::new(Mutex::new(VecDeque::new()));
+		let cargo: Arc<Mutex<VecDeque<Vec<Node>>>> = Arc::new(Mutex::new(VecDeque::new()));
 		Self {
 			cargo
 		}
 	}
 
-	pub fn add_back(&self, frame: Vec<Vec<Node>>) {
+	pub fn add_back(&self, frame: Vec<Node>) {
 		let cp = self.cargo.clone();
 		let mut dp = cp.lock().unwrap();
 		dp.push_back(frame);
 	}
-	pub fn get_fron(&self) -> Option<Vec<Vec<Node>>> {
+
+	pub fn get_fron(&self) -> Option<Vec<Node>> {
 		let cp = self.cargo.clone();
 		let mut dp = cp.lock().unwrap();
 		dp.pop_front()
@@ -134,11 +135,11 @@ impl Readd {
 
 	pub fn read_from_img(img: image::DynamicImage, screen_size: (u32, u32)) -> Vec<Vec<Node>> {
 		let mut vec: Vec<Vec<Node>> = Vec::new();
-		let (weight, height) = screen_size;
+		let (width, height) = screen_size;
 		//let (img_w, img_h) = (img.width(), img.height() * 2 / 3);
 		let (img_w, img_h) = (img.width(), img.height() / 2);
-		let mut ww = weight;
-		let mut hh = img_h * weight / img_w;
+		let mut ww = width;
+		let mut hh = img_h * width / img_w;
 		if hh > height {
 			hh = height;
 			ww = img_w * height / img_h;
@@ -156,6 +157,34 @@ impl Readd {
 		}
 		return vec;
 	}
+
+	pub fn smallize(video: Vec<Vec<Vec<Node>>>) -> Vec<Vec<Node>>{
+		let mut small: Vec<Vec<Node>> = Vec::new();
+		let mut first_frame: Vec<Node> = Vec::new();
+		let (width, height) = (video[0][0].len(), video[0].len());
+		if video.len() > 0 {
+			for i in &video[0] {
+				for node in i {
+					first_frame.push(node.clone());
+				}
+			}
+		}
+		small.push(first_frame);
+		for idx in 1..video.len() {
+			let mut now_frame: Vec<Node> = Vec::new();
+			for y in 0..height {
+				for x in 0..width {
+					if video[idx][y][x] == video[idx - 1][y][x] {
+						continue;
+					}
+					now_frame.push(video[idx][y][x].clone());
+				}
+			}
+			small.push(now_frame);
+		}
+		small
+	}
+
 	pub fn img_file(filename: &str) -> image::DynamicImage {
 		let image = image::open(filename).unwrap();
 		image
@@ -173,11 +202,13 @@ impl Readd {
 		let tmp = steams.index();
 		images
 	}
+
 	pub fn intobin(video: Vec<Vec<Vec<Node>>>, filename: &str) {
 		let mut file = std::fs::File::create(filename).unwrap();
 		let bytes = bincode::serialize(&video).unwrap();
 		file.write_all(&bytes).unwrap();
 	}
+
 	pub fn read_from_bin(filename: &str) -> Vec<Vec<Vec<Node>>> {
 		let file = std::fs::File::open(filename).unwrap();
 		let reader = std::io::BufReader::new(file);

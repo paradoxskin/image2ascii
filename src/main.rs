@@ -62,6 +62,7 @@ fn main() {
 	}
 	utils::Readd::intobin(tmp, "ttmp");
 	*/
+	/*
 	let (s, r) = std::sync::mpsc::channel::<i32>();
 	std::thread::spawn(move || {
 		let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
@@ -82,4 +83,5 @@ fn main() {
 	println!("ok");
 	s.send(233).unwrap();
 	show.run(picts_arc);
+	*/
 }
