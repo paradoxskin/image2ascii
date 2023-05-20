@@ -78,7 +78,7 @@ impl Show {
 	}
 }
 
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Node {
 	node_col: (u8, u8, u8),
 	pub node_style: u8,
