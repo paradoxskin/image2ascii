@@ -8,3 +8,8 @@ edition = "2021"
 [dependencies]
 termion = "*"
 image = "*"
+ffmpeg-next = "*"
+bincode = "*"
+serde = "*"
+serde_derive = "*"
+rodio = "*"

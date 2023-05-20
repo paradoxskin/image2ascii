@@ -1,7 +1,10 @@
 use image::GenericImageView;
+use ffmpeg_next as ffmpeg;
 use termion::color;
 use termion::cursor;
-use std::io::{Stdout, BufWriter, Write};
+use serde_derive::{Serialize, Deserialize};
+
+use std::io::{Stdout, BufWriter, Write, Read};
 use std::collections::VecDeque;
 use std::time;
 use std::sync::Mutex;
@@ -36,24 +39,28 @@ impl Show {
 		(self.screen_weight, self.screen_height)
 	}
 
-	pub fn run(&mut self, imgs: &Read) {
+	pub fn run(&mut self, imgs: Arc<Mutex<Readd>>) {
 		let wait: f64 = 1.0 / (Self::FPS as f64);
 		let stdout = std::io::stdout();
 		let mut writer = BufWriter::new(stdout);
 		print!("{}{}", termion::clear::All, cursor::Hide);
 		loop {
 			let begin = time::Instant::now();
-			if self.play_next_frame(&mut writer, imgs) {
+			if self.play_next_frame(&mut writer, imgs.clone()) {
 				break;
 			}
 			writer.flush().unwrap();
 			let pass = time::Instant::now().duration_since(begin).as_secs_f64();
-			std::thread::sleep(time::Duration::from_secs_f64(wait - pass));
+			let dis = wait - pass;
+			if dis > 0. {
+				std::thread::sleep(time::Duration::from_secs_f64(wait - pass));
+			}
 		}
 		println!("{}{}{}", cursor::Show, color::Bg(color::Reset), color::Fg(color::Reset));
 	}
 
-	fn play_next_frame(&mut self, writer: &mut BufWriter<Stdout>, imgs: &Read) -> bool {
+	fn play_next_frame(&mut self, writer: &mut BufWriter<Stdout>, imgs: Arc<Mutex<Readd>>) -> bool {
+		let imgs = imgs.lock().unwrap();
 		let opt_next_frame = imgs.get_fron();
 		if let Some(next_frame) = opt_next_frame {
 			for x in 0..next_frame[0].len() {
@@ -62,7 +69,7 @@ impl Show {
 						continue;
 					}
 					self.now[y][x] = next_frame[y][x].clone();
-					self.now[y][x].write_pixel(writer);
+					self.now[y][x].write(writer);
 				}
 			}
 			return false;
@@ -71,7 +78,7 @@ impl Show {
 	}
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Node {
 	node_col: (u8, u8, u8),
 	pub node_style: u8,
@@ -102,11 +109,11 @@ impl Node {
 	}
 }
 
-pub struct Read {
+pub struct Readd {
 	cargo: Arc<Mutex<VecDeque<Vec<Vec<Node>>>>>,
 }
 
-impl Read {
+impl Readd {
 	pub fn init() -> Self {
 		let cargo: Arc<Mutex<VecDeque<Vec<Vec<Node>>>>> = Arc::new(Mutex::new(VecDeque::new()));
 		Self {
@@ -152,5 +159,29 @@ impl Read {
 	pub fn img_file(filename: &str) -> image::DynamicImage {
 		let image = image::open(filename).unwrap();
 		image
+	}
+
+	pub fn read_from_video(filename: &str) -> Vec<Vec<Vec<Node>>> {
+		ffmpeg::init().unwrap();
+		let images: Vec<Vec<Vec<Node>>> = Vec::new();
+		let filename = String::from(filename);
+		let format = ffmpeg::format::input(&filename).unwrap();
+		let steams = format
+			.streams()
+			.best(ffmpeg::media::Type::Video)
+			.unwrap();
+		let tmp = steams.index();
+		images
+	}
+	pub fn intobin(video: Vec<Vec<Vec<Node>>>, filename: &str) {
+		let mut file = std::fs::File::create(filename).unwrap();
+		let bytes = bincode::serialize(&video).unwrap();
+		file.write_all(&bytes).unwrap();
+	}
+	pub fn read_from_bin(filename: &str) -> Vec<Vec<Vec<Node>>> {
+		let file = std::fs::File::open(filename).unwrap();
+		let reader = std::io::BufReader::new(file);
+		let data: Vec<Vec<Vec<Node>>> = bincode::deserialize_from(reader).unwrap();
+		data
 	}
 }
