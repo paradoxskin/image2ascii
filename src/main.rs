@@ -7,8 +7,9 @@ use std::io::Read;
 
 fn main() {
 	let picts_arc = Arc::new(Mutex::new(Readd::init()));
-	let mut show: Show = Show::init();
-	let size = show.get_size();
+	let screen = Arc::new(Mutex::new(utils::Show::init()));
+	let timeline = utils::TimeLine::init();
+	let size = timeline.get_size();
 	let picts = picts_arc.clone();
 	/*
 	let mut tmp: Vec<Vec<Vec<utils::Node>>> = Vec::new();

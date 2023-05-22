@@ -10,49 +10,36 @@ use std::time;
 use std::sync::Mutex;
 use std::sync::Arc;
 
-pub struct Show {
+pub struct TimeLine {
 	screen_width: u32,
 	screen_height: u32,
-	now: Vec<Vec<Node>>,
 }
 
-impl Show {
-
+impl TimeLine {
 	const FPS: u8 = 30;
-
 	pub fn init() -> Self {
 		let (a, b) = termion::terminal_size().unwrap();
-		let (screen_width, screen_height) = (a as u32, b as u32);
-		let mut now: Vec<Vec<Node>> = Vec::new();
-		for _ in 0..screen_height {
-			let mut tmp_vec = Vec::<Node>::new();
-			for _ in 0..screen_width {
-				tmp_vec.push(Node::init((0, 0, 0), 0, (0, 0)));
-			}
-			now.push(tmp_vec);
-		}
 		println!("{}少女祈祷中...", termion::clear::All);
-		Show {
-			screen_width,
-			screen_height,
-			now,
+		Self {
+			screen_width: a as u32,
+			screen_height: b as u32,
 		}
 	}
+
 	pub fn get_size(&self) -> (u32, u32) {
 		(self.screen_width, self.screen_height)
 	}
 
-	pub fn run(&mut self, imgs: Arc<Mutex<Readd>>) {
+	pub fn run(&mut self, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) {
 		let wait: f64 = 1.0 / (Self::FPS as f64);
 		let stdout = std::io::stdout();
-		let mut writer = BufWriter::new(stdout);
+		let writer = Arc::new(Mutex::new(BufWriter::new(stdout)));
 		print!("{}{}", termion::clear::All, cursor::Hide);
 		loop {
 			let begin = time::Instant::now();
-			if self.play_next_frame_pro(&mut writer, imgs.clone()) {
+			if self.play_next_frame_pro(writer.clone(), imgs.clone(), screen.clone()) {
 				break;
 			}
-			writer.flush().unwrap();
 			let pass = time::Instant::now().duration_since(begin).as_secs_f64();
 			let dis = wait - pass;
 			if dis > 0. {
@@ -62,19 +49,45 @@ impl Show {
 		println!("{}{}{}", cursor::Show, color::Bg(color::Reset), color::Fg(color::Reset));
 	}
 
-	fn play_next_frame_pro(&mut self, writer: &mut BufWriter<Stdout>, imgs: Arc<Mutex<Readd>>) -> bool {
+	fn play_next_frame_pro(&mut self, writer: Arc<Mutex<BufWriter<Stdout>>>, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) -> bool {
 		let imgs = imgs.lock().unwrap();
 		let opt_next_frame = imgs.get_fron();
 		if let Some(next_frame) = opt_next_frame {
-			for upd in next_frame {
-				let (x, y) = upd.pos;
-				let (x, y) = (x as usize, y as usize);
-				self.now[y][x] = upd.clone();
-				self.now[y][x].write(writer);
-			}
+			std::thread::spawn(move||{
+				let mut writer = writer.lock().unwrap();
+				let mut screen = screen.lock().unwrap();
+				for upd in next_frame {
+					let (x, y) = upd.pos;
+					let (x, y) = (x as usize, y as usize);
+					screen.now[y][x] = upd.clone();
+					screen.now[y][x].write(&mut writer);
+				}
+				writer.flush().unwrap();
+			});
 			return false;
 		}
 		return true;
+	}
+}
+
+pub struct Show {
+	now: Vec<Vec<Node>>,
+}
+
+impl Show {
+	pub fn init() -> Self {
+		let (a, b) = termion::terminal_size().unwrap();
+		let mut now: Vec<Vec<Node>> = Vec::new();
+		for _ in 0..b {
+			let mut tmp_vec = Vec::<Node>::new();
+			for _ in 0..a {
+				tmp_vec.push(Node::init((0, 0, 0), 0, (0, 0)));
+			}
+			now.push(tmp_vec);
+		}
+		Show {
+			now,
+		}
 	}
 }
 
@@ -95,7 +108,7 @@ impl Node {
 		}
 	}
 
-	pub fn write(&self, writer: &mut BufWriter<Stdout>) {
+	pub fn write(&self, writer: &mut std::sync::MutexGuard<BufWriter<Stdout>>) {
 		write!(writer, "{}{}{}",
 				cursor::Goto(self.pos.0 as u16, self.pos.1 as u16),
 				color::Fg(color::Rgb(self.node_col.0, self.node_col.1, self.node_col.2)),
@@ -132,6 +145,8 @@ impl Readd {
 		let mut dp = cp.lock().unwrap();
 		dp.pop_front()
 	}
+
+	/// static function start
 
 	pub fn read_from_img(img: image::DynamicImage, screen_size: (u32, u32)) -> Vec<Vec<Node>> {
 		let mut vec: Vec<Vec<Node>> = Vec::new();
