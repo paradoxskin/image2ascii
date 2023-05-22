@@ -160,17 +160,21 @@ impl Readd {
 			ww = img_w * height / img_h;
 		}
 		let col_img = img.resize_exact(ww, hh, image::imageops::FilterType::Triangle);
-		let luma_img = img.resize_exact(ww, hh, image::imageops::FilterType::Triangle).into_luma8();
 		for y in 0..hh {
 			let mut tmp_vec: Vec<Node> = Vec::new();
 			for x in 0..ww {
-				let dep = luma_img.get_pixel(x, y).0[0] / 16;
 				let col = col_img.get_pixel(x, y).0;
+				let dep = Self::get_dep(col);
 				tmp_vec.push(Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)));
 			}
 			vec.push(tmp_vec);
 		}
 		return vec;
+	}
+
+	fn get_dep(rgba: [u8; 4]) -> u8 {
+		let dep = (rgba[0] as f64 * 0.3 + 0.59 * rgba[1] as f64 + 0.11 * rgba[2] as f64) as u8 / 16;
+		dep
 	}
 
 	pub fn smallize(video: Vec<Vec<Vec<Node>>>) -> Vec<Vec<Node>>{
