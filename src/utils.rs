@@ -19,7 +19,7 @@ impl TimeLine {
 	const FPS: u8 = 30;
 	pub fn init() -> Self {
 		let (a, b) = termion::terminal_size().unwrap();
-		println!("{}少女祈祷中...", termion::clear::All);
+		println!("{}{}少女祈祷中...", termion::clear::All, termion::cursor::Goto(1, 1));
 		Self {
 			screen_width: a as u32,
 			screen_height: b as u32,
@@ -218,16 +218,87 @@ impl Readd {
 		images
 	}
 
-	pub fn intobin(video: Vec<Vec<Vec<Node>>>, filename: &str) {
+	pub fn intobin(video: Vec<Vec<Node>>, filename: &str) {
 		let mut file = std::fs::File::create(filename).unwrap();
 		let bytes = bincode::serialize(&video).unwrap();
 		file.write_all(&bytes).unwrap();
 	}
 
-	pub fn read_from_bin(filename: &str) -> Vec<Vec<Vec<Node>>> {
+	pub fn read_from_bin(filename: &str) -> Vec<Vec<Node>> {
 		let file = std::fs::File::open(filename).unwrap();
 		let reader = std::io::BufReader::new(file);
-		let data: Vec<Vec<Vec<Node>>> = bincode::deserialize_from(reader).unwrap();
+		let data: Vec<Vec<Node>> = bincode::deserialize_from(reader).unwrap();
 		data
+	}
+
+	pub fn read_frame(filename: String, screen_size: (u32, u32)) -> Vec<Vec<Node>> {
+		ffmpeg::init().unwrap();
+
+		let mut rt: Vec<Vec<Node>> = Vec::new();
+		let mut ictx = ffmpeg::format::input(&filename).unwrap();
+		let input = ictx
+			.streams()
+			.best(ffmpeg::media::Type::Video)
+			.unwrap();
+		let video_index = input.index();
+		let context_decoder = ffmpeg::codec::context::Context::from_parameters(input.parameters())
+			.unwrap();
+		let mut decoder = context_decoder.decoder()
+			.video()
+			.unwrap();
+		let mut scaler = ffmpeg::software::scaling::Context::get(
+				decoder.format(),
+				decoder.width(),
+				decoder.height(),
+				ffmpeg::format::Pixel::RGB24,
+				decoder.width(),
+				decoder.height(),
+				ffmpeg::software::scaling::flag::Flags::BILINEAR,)
+			.unwrap();
+		let mut last_nodes: Vec<Vec<Node>>;
+		let mut now_nodes: Vec<Vec<Node>> = Vec::new();
+		let mut flag = false;
+		let mut count = 0;
+		for (stream, packet) in ictx.packets() {
+			if stream.index() == video_index {
+				decoder.send_packet(&packet).unwrap();
+				let mut decoded = ffmpeg::util::frame::Video::empty();
+				while decoder.receive_frame(&mut decoded).is_ok() {
+					let mut rgb_frame = ffmpeg::util::frame::Video::empty();
+					scaler.run(&decoded, &mut rgb_frame).unwrap();
+					let mut data = Vec::from(format!("P6\n{} {}\n255\n", rgb_frame.width(), rgb_frame.height()));
+					let mut pic_data = Vec::from(rgb_frame.data(0));
+					data.append(&mut pic_data);
+					let img = image::load_from_memory(&data).unwrap();
+					let mut now_frame: Vec<Node> = Vec::new();
+					count += 1;
+					println!("{}", count);
+					if flag {
+						last_nodes = now_nodes.clone();
+						now_nodes = Readd::read_from_img(img, screen_size);
+						for y in 0..now_nodes.len() {
+							for x in 0..now_nodes[0].len() {
+								if now_nodes[y][x] == last_nodes[y][x] {
+									continue;
+								}
+								now_frame.push(now_nodes[y][x].clone());
+							}
+						}
+						rt.push(now_frame);
+						continue;
+					}
+					// first frame
+					flag = true;
+					now_nodes = Readd::read_from_img(img, screen_size);
+					for i in &now_nodes {
+						for node in i {
+							now_frame.push(node.clone());
+						}
+					}
+					rt.push(now_frame);
+				}
+			}
+		}
+		rt
 	}
 }

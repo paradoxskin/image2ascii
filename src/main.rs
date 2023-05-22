@@ -11,6 +11,8 @@ fn main() {
 	let timeline = utils::TimeLine::init();
 	let size = timeline.get_size();
 	let picts = picts_arc.clone();
+	let z = Readd::read_frame(String::from("/home/paradoxd/Music/Video/BadApple.mp4"), size);
+	println!("{}", z.len());
 	/*
 	let mut tmp: Vec<Vec<Vec<utils::Node>>> = Vec::new();
 	let arcc: Arc<Mutex<Vec<Vec<Vec<utils::Node>>>>> = Arc::new(Mutex::new(Vec::new()));
