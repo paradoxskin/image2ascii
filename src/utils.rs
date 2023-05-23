@@ -58,7 +58,7 @@ impl TimeLine {
 				let mut screen = screen.lock().unwrap();
 				for upd in next_frame {
 					let (x, y) = upd.pos;
-					let (x, y) = (x as usize, y as usize);
+					let (x, y) = (x as usize - 1, y as usize - 1);
 					screen.now[y][x] = upd.clone();
 					screen.now[y][x].write(&mut writer);
 				}
