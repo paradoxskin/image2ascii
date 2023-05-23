@@ -11,8 +11,17 @@ fn main() {
 	let timeline = utils::TimeLine::init();
 	let size = timeline.get_size();
 	let picts = picts_arc.clone();
-	let z = Readd::read_frame(String::from("/home/paradoxd/Music/Video/solBadguy.mp4"), size);
-	println!("{}", z.len());
+	{
+		let mut zz = picts.lock().unwrap();
+		let zzz = Readd::read_from_bin("/home/paradoxd/boring/bad_apple/ttmp");
+		for i in zzz {
+			zz.add_back(i);
+		}
+	}
+	timeline.run(picts, screen);
+	//let z = Readd::read_frame(String::from("/home/paradoxd/Music/Video/BadApple.mp4"), size);
+	//println!("{}", z.len());
+	//Readd::intobin(z, "tmpp");
 	/*
 	let mut tmp: Vec<Vec<Vec<utils::Node>>> = Vec::new();
 	let arcc: Arc<Mutex<Vec<Vec<Vec<utils::Node>>>>> = Arc::new(Mutex::new(Vec::new()));

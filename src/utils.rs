@@ -30,7 +30,7 @@ impl TimeLine {
 		(self.screen_width, self.screen_height)
 	}
 
-	pub fn run(&mut self, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) {
+	pub fn run(&self, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) {
 		let wait: f64 = 1.0 / (Self::FPS as f64);
 		let stdout = std::io::stdout();
 		let writer = Arc::new(Mutex::new(BufWriter::new(stdout)));
@@ -49,7 +49,7 @@ impl TimeLine {
 		println!("{}{}{}", cursor::Show, color::Bg(color::Reset), color::Fg(color::Reset));
 	}
 
-	fn play_next_frame_pro(&mut self, writer: Arc<Mutex<BufWriter<Stdout>>>, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) -> bool {
+	fn play_next_frame_pro(&self, writer: Arc<Mutex<BufWriter<Stdout>>>, imgs: Arc<Mutex<Readd>>, screen: Arc<Mutex<Show>>) -> bool {
 		let imgs = imgs.lock().unwrap();
 		let opt_next_frame = imgs.get_fron();
 		if let Some(next_frame) = opt_next_frame {
@@ -160,16 +160,85 @@ impl Readd {
 			ww = img_w * height / img_h;
 		}
 		let col_img = img.resize_exact(ww, hh, image::imageops::FilterType::Triangle);
-		for y in 0..hh {
-			let mut tmp_vec: Vec<Node> = Vec::new();
-			for x in 0..ww {
-				let col = col_img.get_pixel(x, y).0;
-				let dep = Self::get_dep(col);
-				tmp_vec.push(Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)));
+		let rt_vec: Arc<Mutex<Vec<Vec<Node>>>> = Arc::new(Mutex::new(Vec::new()));
+		{
+			let mut lk = rt_vec.lock().unwrap();
+			for _ in 0..hh {
+				let mut one_line: Vec<Node> = Vec::new();
+				for _ in 0..ww {
+					one_line.push(Node::init((0, 0, 0), 0, (0, 0)));
+				}
+				lk.push(one_line);
 			}
-			vec.push(tmp_vec);
 		}
-		return vec;
+		let arc_col_img = Arc::new(col_img);
+
+		let cp_1 = rt_vec.clone();
+		let cp_2 = rt_vec.clone();
+		let cp_3 = rt_vec.clone();
+		let cp_4 = rt_vec.clone();
+
+		let cp_col_1 = arc_col_img.clone();
+		let cp_col_2 = arc_col_img.clone();
+		let cp_col_3 = arc_col_img.clone();
+		let cp_col_4 = arc_col_img.clone();
+
+		let mut v_spawn: Vec<std::thread::JoinHandle<()>> = Vec::new();
+
+		v_spawn.push(std::thread::spawn(move || {
+			for y in 0..(hh / 2) {
+				for x in 0..(ww / 2) {
+					let col = cp_col_1.get_pixel(x, y).0;
+					let dep = Self::get_dep(col);
+					{
+						let mut lk = cp_1.lock().unwrap();
+						lk[y as usize][x as usize] = Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)).clone();
+					}
+				}
+			}
+		}));
+		v_spawn.push(std::thread::spawn(move || {
+			for y in (hh / 2 + 1)..hh {
+				for x in 0..(ww / 2) {
+					let col = cp_col_2.get_pixel(x, y).0;
+					let dep = Self::get_dep(col);
+					{
+						let mut lk = cp_2.lock().unwrap();
+						lk[y as usize][x as usize] = Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)).clone();
+					}
+				}
+			}
+		}));
+		v_spawn.push(std::thread::spawn(move || {
+			for y in 0..(hh / 2) {
+				for x in (ww / 2 + 1)..ww {
+					let col = cp_col_3.get_pixel(x, y).0;
+					let dep = Self::get_dep(col);
+					{
+						let mut lk = cp_3.lock().unwrap();
+						lk[y as usize][x as usize] = Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)).clone();
+					}
+				}
+			}
+		}));
+		v_spawn.push(std::thread::spawn(move || {
+			for y in (hh / 2 + 1)..hh {
+				for x in (ww / 2 + 1)..ww {
+					let col = cp_col_4.get_pixel(x, y).0;
+					let dep = Self::get_dep(col);
+					{
+						let mut lk = cp_4.lock().unwrap();
+						lk[y as usize][x as usize] = Node::init((col[0], col[1], col[2]), dep, (x + 1, y + 1)).clone();
+					}
+				}
+			}
+		}));
+		for handle in v_spawn {
+			handle.join().unwrap();
+		}
+		let lk = rt_vec.lock().unwrap();
+		let rt = lk.clone();
+		rt
 	}
 
 	fn get_dep(rgba: [u8; 4]) -> u8 {
@@ -296,6 +365,9 @@ impl Readd {
 					now_nodes = Readd::read_from_img(img, screen_size);
 					for i in &now_nodes {
 						for node in i {
+							if node.node_style == 0 {
+								continue;
+							}
 							now_frame.push(node.clone());
 						}
 					}
