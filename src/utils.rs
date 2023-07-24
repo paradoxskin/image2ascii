@@ -16,7 +16,7 @@ pub struct TimeLine {
 }
 
 impl TimeLine {
-	const FPS: u8 = 30;
+	const FPS: u8 = 24;
 	pub fn init() -> Self {
 		let (a, b) = termion::terminal_size().unwrap();
 		println!("{}{}少女祈祷中...", termion::clear::All, termion::cursor::Goto(1, 1));
@@ -59,8 +59,9 @@ impl TimeLine {
 				for upd in next_frame {
 					let (x, y) = upd.pos;
 					let (x, y) = (x as usize - 1, y as usize - 1);
-					screen.now[y][x] = upd.clone();
-					screen.now[y][x].write(&mut writer);
+					upd.write(&mut writer);
+					//screen.now[y][x] = upd.clone();
+					//screen.now[y][x].write(&mut writer);
 				}
 				writer.flush().unwrap();
 			});
@@ -186,8 +187,8 @@ impl Readd {
 		let mut v_spawn: Vec<std::thread::JoinHandle<()>> = Vec::new();
 
 		v_spawn.push(std::thread::spawn(move || {
-			for y in 0..(hh / 2) {
-				for x in 0..(ww / 2) {
+			for y in 0..(hh / 2 + 1) {
+				for x in 0..(ww / 2 + 1) {
 					let col = cp_col_1.get_pixel(x, y).0;
 					let dep = Self::get_dep(col);
 					{
@@ -199,7 +200,7 @@ impl Readd {
 		}));
 		v_spawn.push(std::thread::spawn(move || {
 			for y in (hh / 2 + 1)..hh {
-				for x in 0..(ww / 2) {
+				for x in 0..(ww / 2 + 1) {
 					let col = cp_col_2.get_pixel(x, y).0;
 					let dep = Self::get_dep(col);
 					{
@@ -210,7 +211,7 @@ impl Readd {
 			}
 		}));
 		v_spawn.push(std::thread::spawn(move || {
-			for y in 0..(hh / 2) {
+			for y in 0..(hh / 2 + 1) {
 				for x in (ww / 2 + 1)..ww {
 					let col = cp_col_3.get_pixel(x, y).0;
 					let dep = Self::get_dep(col);
@@ -349,8 +350,10 @@ impl Readd {
 					if flag {
 						last_nodes = now_nodes.clone();
 						now_nodes = Readd::read_from_img(img, screen_size);
-						for y in 0..now_nodes.len() {
-							for x in 0..now_nodes[0].len() {
+						let size_y = now_nodes.len();
+						let size_x = now_nodes[0].len();
+						for y in 0..size_y {
+							for x in 0..size_x {
 								if now_nodes[y][x] == last_nodes[y][x] {
 									continue;
 								}
