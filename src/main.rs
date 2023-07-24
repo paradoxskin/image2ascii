@@ -1,10 +1,9 @@
 mod utils;
+mod player;
+mod reader;
 
-use utils::{Show, Readd};
-use std::sync::{Arc, Mutex};
-use rodio::Sink;
-use std::io::Read;
 use std::env;
+use std::fs;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,7 +16,6 @@ fn main() {
         return;
     }
     match args[1].as_str() {
-        // TODO check usable of path
         "-f" => {
             let get_from_vec = args.get(2);
             if let Some(path)  = get_from_vec {
@@ -29,9 +27,31 @@ fn main() {
                     out_path = path;
                 }
                 else {
-                    // TODO get parent dir
-                    out_path = "";
+					let parent = std::path::Path::new(&file_path).parent();
+					if let Some(pa) = parent {
+						if let Some(past) = pa.to_str() {
+							out_path = past;
+						}
+						else {
+							println!("Can't Set the Default Dir!\n\n{}", help);
+							return;
+						}
+					}
+					else {
+						println!("Can't Set the Default Dir!\n\n{}", help);
+						return;
+					}
                 }
+
+				if std::path::Path::new(file_path).exists() {
+					println!("Path Not Exists!\n\n{}", help);
+					return;
+				}
+				if std::path::Path::new(out_path).exists() {
+					println!("Parent Dir Not Exists or Can't Open!\n\n{}", help);
+					return;
+				}
+
                 // TODO start process
             }
             else {
