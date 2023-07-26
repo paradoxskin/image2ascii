@@ -1,3 +1,6 @@
+use binrw::binrw;
+
+#[binrw]
 pub enum Color {
     Rgb([u8; 3]),
     My256(u8),

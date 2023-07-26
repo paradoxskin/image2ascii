@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
+use binrw::binrw;
 
-struct Node {
+#[binrw]
+pub struct Node {
     node_col: crate::color::Color,
     node_style: u8,
     pos: (u16, u16),
@@ -9,7 +11,7 @@ struct Node {
 impl Node {
 	const CHAR: [char; 16] = [' ', '.', ':', ';', 'i', '7', 'r', 'a', 'Z', 'S', '0', '8', 'X', 'M', 'W', '@'];
 
-    fn new(color: crate::color::Color, style: u8, pos: (u16, u16)) -> Self {
+    pub fn new(color: crate::color::Color, style: u8, pos: (u16, u16)) -> Self {
         Self {
             node_col: color,
             node_style: style,
@@ -28,23 +30,23 @@ impl Node {
     }
 }
 
-struct NodeQue {
+pub struct NodeQue {
     queue: VecDeque<Vec<Node>>
 }
 
 impl NodeQue {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let queue: VecDeque<Vec<Node>> = VecDeque::new();
         Self {
             queue
         }
     }
 
-    fn get_front(&mut self) -> Vec<Node> {
-        self.queue.pop_front().unwrap()
+    fn get_front(&mut self) -> Option<Vec<Node>> {
+        self.queue.pop_front()
     }
 
-    fn add_back(&mut self, a_frame: Vec<Node>) {
+    pub fn add_back(&mut self, a_frame: Vec<Node>) {
         self.queue.push_back(a_frame);
     }
 }
@@ -115,7 +117,7 @@ impl Player {
         }
         let screen = Screen::new(width, height);
         let mut node_que = NodeQue::new();
-        // add frames to node_que
+        // TODO add frames to node_que
         Some(Self {
             fps,
             width,
@@ -129,19 +131,24 @@ impl Player {
         let wait = 1.0 / self.fps as f64;
         loop {
 			let begin = std::time::Instant::now();
-            let frame = self.node_que.get_front();
-            for node in frame {
-                let pos = node.get_pos();
-                let idx = self.screen.get_index(pos.0 as usize, pos.1 as usize);
-                // TODO draw
-                self.screen.screen[idx].change_to(&node);
+            let opt_frame = self.node_que.get_front();
+            if let Some(frame) = opt_frame {
+                for node in frame {
+                    let pos = node.get_pos();
+                    let idx = self.screen.get_index(pos.0 as usize, pos.1 as usize);
+                    // TODO draw
+                    self.screen.screen[idx].change_to(&node);
+                }
+                // TODO skip if slow
+                let pass = std::time::Instant::now().duration_since(begin).as_secs_f64();
+                let dis = wait - pass;
+                if dis > 0. {
+                    std::thread::sleep(std::time::Duration::from_secs_f64(wait - pass));
+                }
             }
-            // TODO skip if slow
-			let pass = std::time::Instant::now().duration_since(begin).as_secs_f64();
-			let dis = wait - pass;
-			if dis > 0. {
-				std::thread::sleep(std::time::Duration::from_secs_f64(wait - pass));
-			}
+            else {
+                break;
+            }
         }
     }
 }
