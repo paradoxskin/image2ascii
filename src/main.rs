@@ -2,6 +2,7 @@ mod utils;
 mod player;
 mod reader;
 mod color;
+mod data;
 
 use std::env;
 use std::fs;
