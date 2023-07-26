@@ -5,16 +5,16 @@ pub enum Color {
 }
 
 impl Color {
-    pub fn get_rgb(input: Color) -> (u8, u8, u8) {
+    pub fn get_rgb(input: &Color) -> (u8, u8, u8) {
         match input {
             Color::Rgb(rgb) => {
                 (rgb[0] , rgb[1], rgb[2])
             },
             Color::My256(idx) => {
-                Self::MY256[idx as usize]
+                Self::MY256[idx.to_owned() as usize]
             },
             Color::Df256(idx) => {
-                Self::DF256[idx as usize]
+                Self::DF256[idx.to_owned() as usize]
             }
         }
     }
