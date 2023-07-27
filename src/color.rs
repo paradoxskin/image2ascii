@@ -2,8 +2,11 @@ use binrw::binrw;
 
 #[binrw]
 pub enum Color {
+    #[brw(magic(0u8))]
     Rgb([u8; 3]),
+    #[brw(magic(1u8))]
     My256(u8),
+    #[brw(magic(2u8))]
     Df256(u8)
 }
 
