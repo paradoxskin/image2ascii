@@ -1,5 +1,6 @@
-use binrw::binrw;
+use binrw::{binrw, BinRead, BinWrite};
 use crate::player::{Node, NodeQue};
+use std::io::{Cursor, Read, Write, BufReader};
 
 #[binrw]
 #[brw(big, magic = b"I2A")]
@@ -16,7 +17,18 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn output(pkg: Package) -> crate::player::NodeQue {
+    pub fn new(fps: u8, width: u16, height: u16, num_per_frame: Vec<u32>, nodes: Vec<Node>) -> Self {
+        Self {
+            fps,
+            width,
+            height,
+            num_per_frame_count: num_per_frame.len() as u32,
+            num_per_frame,
+            nodes_count: nodes.len() as u64,
+            nodes
+        }
+    }
+    pub fn open(pkg: Package) -> crate::player::NodeQue {
         let mut que = NodeQue::new();
         let mut iter = pkg.nodes.into_iter();
         for lmt in pkg.num_per_frame {
@@ -30,4 +42,27 @@ impl Package {
         }
         que
     }
+}
+
+pub fn pack(package: Package, output_path: &str) {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    package.write(&mut buf).unwrap();
+
+    let mut encoder = flate2::bufread::DeflateEncoder::new(buf, flate2::Compression::best());
+    let mut encoded_buf = Vec::new();
+    encoder.read_to_end(&mut encoded_buf).unwrap();
+
+    let mut file = std::fs::File::create(output_path).unwrap();
+    file.write(encoded_buf.as_slice()).unwrap();
+}
+
+pub fn unpack(file_path: &str) -> Package {
+    let file = std::fs::File::open(file_path).unwrap();
+    let buf = BufReader::new(file);
+
+    let mut decoder = flate2::bufread::DeflateDecoder::new(buf);
+    let mut decoded_buf = Vec::new();
+    decoder.read_to_end(&mut decoded_buf).unwrap();
+
+    Package::read(&mut Cursor::new(decoded_buf)).unwrap()
 }

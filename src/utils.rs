@@ -150,7 +150,6 @@ impl Readd {
 	/// static function start
 
 	pub fn read_from_img(img: image::DynamicImage, screen_size: (u32, u32)) -> Vec<Vec<Node>> {
-		let mut vec: Vec<Vec<Node>> = Vec::new();
 		let (width, height) = screen_size;
 		//let (img_w, img_h) = (img.width(), img.height() * 2 / 3);
 		let (img_w, img_h) = (img.width(), img.height() / 2);

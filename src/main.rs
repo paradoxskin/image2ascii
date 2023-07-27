@@ -21,7 +21,7 @@ fn main() {
         "-f" => {
             let get_from_vec = args.get(2);
             if let Some(path)  = get_from_vec {
-                let file_path = path;
+                let file_path = path.as_str();
                 let out_path: &str;
 
                 let get_from_vec = args.get(3);
@@ -29,7 +29,7 @@ fn main() {
                     out_path = path;
                 }
                 else {
-					let parent = std::path::Path::new(&file_path).parent();
+					let parent = std::path::Path::new(file_path).parent();
 					if let Some(pa) = parent {
 						if let Some(past) = pa.to_str() {
 							out_path = past;
@@ -54,7 +54,7 @@ fn main() {
 					return;
 				}
 
-                // TODO start process
+                crate::reader::process(file_path, out_path);
             }
             else {
                 println!("Need Path!\n\n{}", help);
