@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use binrw::binrw;
 use crate::data;
+use image::io::Reader;
 
 #[binrw]
 pub struct Node {
@@ -111,9 +112,8 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(fps: u8, width: u16, height: u16, node_que: NodeQue) -> Option<Self> {
-        let (ww, hh) = termion::terminal_size().unwrap();
-        if ww < width || hh < height {
+    pub fn new(fps: u8, width: u16, height: u16, s_width: u16, s_height: u16, node_que: NodeQue) -> Option<Self> {
+        if s_width < width || s_height < height {
             return None;
         }
         let screen = Screen::new(width, height);
@@ -135,10 +135,10 @@ impl Player {
                 for node in frame {
                     let pos = node.get_pos();
                     let idx = self.screen.get_index(pos.0 as usize, pos.1 as usize);
-                    // TODO draw
+                    // TODO! draw
                     self.screen.screen[idx].change_to(&node);
                 }
-                // TODO skip if slow
+                // TODO- skip if slow
                 let pass = std::time::Instant::now().duration_since(begin).as_secs_f64();
                 let dis = wait - pass;
                 if dis > 0. {
@@ -153,11 +153,36 @@ impl Player {
 }
 
 pub fn play(filename: &str) {
-    let pkg = data::unpack(filename);
-    let (fps, width, height) = pkg.get_config();
-    let o_player = Player::new(fps, width, height, data::Package::open(pkg));
-    if let Some(player) = o_player {
+    let (s_width, s_height) = termion::terminal_size().unwrap();
+    let o_player: Option<Player>;
+    match is_img(filename, s_width, s_height) {
+        None => {
+            let pkg = data::unpack(filename);
+            let (fps, width, height) = pkg.get_config();
+            o_player = Player::new(fps, width, height, s_width, s_height, data::Package::open(pkg));
+        },
+        Some(node_que) => {
+            // no need to know ascii_img's width and height
+            o_player = Player::new(1, s_width, s_height, s_width, s_height, node_que);
+        }
+    }
+    if let Some(mut player) = o_player {
+        // play music?
         player.mainloop();
+        return;
     }
     println!("screen too small ~\nrebuild the origin video\n\n{}", crate::HELP);
+}
+
+pub fn is_img(filename: &str, s_width: u16, s_height: u16) -> Option<NodeQue> {
+    if let Ok(file) = Reader::open(filename) {
+        if let Ok(img) = file.decode() {
+            let mut node_que = NodeQue::new();
+            // TODO color option
+            let tmp = crate::reader::tools::img2asc(img, s_width, s_height, 2);
+            node_que.add_back(tmp);
+            return Some(node_que);
+        }
+    }
+    None
 }

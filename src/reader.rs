@@ -1,4 +1,4 @@
-mod tools {
+pub mod tools {
     use crate::player::Node;
     use crate::color::Color;
     use image::GenericImageView;
@@ -15,6 +15,10 @@ mod tools {
         r / 32 * 32 + g / 32 * 4 + b / 64
     }
 
+    /// color Option:
+    /// 0 -> RGB
+    /// 1 -> My256
+    /// 2 -> Df256
     pub fn img2asc(img: image::DynamicImage, width: u16, height: u16, color_flag: u8) -> Vec<Node> {
         let mut asc: Vec<Node> = Vec::new();
 		let (img_w, img_h) = (img.width(), img.height() / 2);
