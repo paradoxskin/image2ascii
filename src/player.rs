@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use binrw::binrw;
+use crate::data;
 
 #[binrw]
 pub struct Node {
@@ -110,14 +111,12 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(fps: u8, width: u16, height: u16) -> Option<Self> {
+    pub fn new(fps: u8, width: u16, height: u16, node_que: NodeQue) -> Option<Self> {
         let (ww, hh) = termion::terminal_size().unwrap();
         if ww < width || hh < height {
             return None;
         }
         let screen = Screen::new(width, height);
-        let mut node_que = NodeQue::new();
-        // TODO add frames to node_que
         Some(Self {
             fps,
             width,
@@ -151,4 +150,14 @@ impl Player {
             }
         }
     }
+}
+
+pub fn play(filename: &str) {
+    let pkg = data::unpack(filename);
+    let (fps, width, height) = pkg.get_config();
+    let o_player = Player::new(fps, width, height, data::Package::open(pkg));
+    if let Some(player) = o_player {
+        player.mainloop();
+    }
+    println!("screen too small ~\nrebuild the origin video\n\n{}", crate::HELP);
 }

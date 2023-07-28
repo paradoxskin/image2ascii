@@ -28,6 +28,12 @@ impl Package {
             nodes
         }
     }
+    /// -> (fps, width, height)
+    pub fn get_config(&self) -> (u8, u16, u16) {
+        (self.fps, self.width, self.height)
+    }
+
+    /// -> NodeQue
     pub fn open(pkg: Package) -> crate::player::NodeQue {
         let mut que = NodeQue::new();
         let mut iter = pkg.nodes.into_iter();
@@ -44,6 +50,7 @@ impl Package {
     }
 }
 
+/// data -> file
 pub fn pack(package: Package, output_path: &str) {
     let mut buf = Cursor::new(Vec::<u8>::new());
     package.write(&mut buf).unwrap();
@@ -56,6 +63,7 @@ pub fn pack(package: Package, output_path: &str) {
     file.write(encoded_buf.as_slice()).unwrap();
 }
 
+/// file -> data
 pub fn unpack(file_path: &str) -> Package {
     let file = std::fs::File::open(file_path).unwrap();
     let buf = BufReader::new(file);
