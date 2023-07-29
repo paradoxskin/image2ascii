@@ -4,7 +4,7 @@ pub mod tools {
     use image::GenericImageView;
 
     fn rgb2dep(r: u8, g: u8, b: u8) -> u8 {
-		let dep = (r as f64 * 0.3 + 0.59 * g as f64 + 0.11 * b as f64) as u8 / 16;
+		let dep = (r as f64 * 0.3 + 0.59 * g as f64 + 0.11 * b as f64) as u8;
         dep
     }
     fn rgb2my256(r: u8, g: u8, b: u8) -> u8 {

@@ -45,11 +45,11 @@ fn main() {
 					}
                 }
 
-				if std::path::Path::new(file_path).exists() {
+				if !std::path::Path::new(file_path).exists() {
 					println!("Path Not Exists!\n\n{}", HELP);
 					return;
 				}
-				if std::path::Path::new(out_path).exists() {
+				if !std::path::Path::new(out_path).exists() {
 					println!("Parent Dir Not Exists or Can't Open!\n\n{}", HELP);
 					return;
 				}

@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use binrw::binrw;
 use crate::data;
 use image::io::Reader;
+use termion::raw::IntoRawMode;
+use std::io::Write;
 
 #[binrw]
 pub struct Node {
@@ -11,7 +13,7 @@ pub struct Node {
 }
 
 impl Node {
-	const CHAR: [char; 16] = [' ', '.', ':', ';', 'i', '7', 'r', 'a', 'Z', 'S', '0', '8', 'X', 'M', 'W', '@'];
+	const CHAR: [char; 16] = ['.', '.', ':', ';', 'i', '7', 'r', 'a', 'Z', 'S', '0', '8', 'X', 'M', 'W', '@'];
 
     pub fn new(color: crate::color::Color, style: u8, pos: (u16, u16)) -> Self {
         Self {
@@ -128,6 +130,8 @@ impl Player {
 
     pub fn mainloop(&mut self) {
         let wait = 1.0 / self.fps as f64;
+        print!("{}{}", termion::cursor::Hide, termion::clear::All);
+        let mut stdout = std::io::stdout().into_raw_mode().unwrap();
         loop {
 			let begin = std::time::Instant::now();
             let opt_frame = self.node_que.get_front();
@@ -135,9 +139,12 @@ impl Player {
                 for node in frame {
                     let pos = node.get_pos();
                     let idx = self.screen.get_index(pos.0 as usize, pos.1 as usize);
-                    // TODO! draw
+                    let rgb = node.get_node_col();
+                    let style = node.get_node_style();
+                    write!(stdout, "{}{}{}", termion::cursor::Goto(pos.0 + 1, pos.1 + 1), termion::color::Fg(termion::color::Rgb(rgb.0, rgb.1, rgb.2)), style).unwrap();
                     self.screen.screen[idx].change_to(&node);
                 }
+                stdout.flush().unwrap();
                 // TODO- skip if slow
                 let pass = std::time::Instant::now().duration_since(begin).as_secs_f64();
                 let dis = wait - pass;
@@ -149,6 +156,7 @@ impl Player {
                 break;
             }
         }
+        print!("{}", termion::cursor::Show);
     }
 }
 
