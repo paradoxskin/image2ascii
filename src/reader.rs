@@ -63,6 +63,22 @@ pub mod tools {
         let mut asc: Vec<Node> = Vec::new();
         asc
     }
+
+    /// ori_fps -> tar_fps, not change when ori_fps < tar_fps
+    /// return (fps, SHOULD_READ_FRAME)
+    pub fn rate_adjust(ori_fps: u16, tar_fps: u16) -> (u16, Vec<u8>){
+        if ori_fps <= tar_fps {
+            let rt = (0..ori_fps as u8).collect();
+            return (ori_fps, rt);
+        }
+        let mut rt: Vec<u8>= Vec::new();
+        for idx in 0..ori_fps * tar_fps {
+            if idx%ori_fps == 0 {
+                rt.push((idx / tar_fps) as u8);
+            }
+        }
+        (tar_fps, rt)
+    }
 }
 
 use crate::data::Package;
