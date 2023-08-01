@@ -2,6 +2,7 @@ pub mod tools {
     use crate::player::Node;
     use crate::color::Color;
     use image::GenericImageView;
+    use std::collections::HashSet;
 
     fn rgb2dep(r: u8, g: u8, b: u8) -> u8 {
 		let dep = (r as f64 * 0.3 + 0.59 * g as f64 + 0.11 * b as f64) as u8;
@@ -65,24 +66,28 @@ pub mod tools {
     }
 
     /// ori_fps -> tar_fps, not change when ori_fps < tar_fps
-    /// return (fps, SHOULD_READ_FRAME)
-    pub fn rate_adjust(ori_fps: u16, tar_fps: u16) -> (u16, Vec<u8>){
+    /// return (fps, SHOULD_READ_FRAME_SET)
+    pub fn rate_adjust(ori_fps: u16, tar_fps: u16) -> (u8, HashSet<u8>){
         if ori_fps <= tar_fps {
-            let rt = (0..ori_fps as u8).collect();
-            return (ori_fps, rt);
+            let mut rt = HashSet::new();
+            for idx in 0..ori_fps {
+                rt.insert(idx as u8);
+            }
+            return (ori_fps as u8, rt);
         }
-        let mut rt: Vec<u8>= Vec::new();
+        let mut rt = HashSet::new();
         for idx in 0..ori_fps * tar_fps {
             if idx%ori_fps == 0 {
-                rt.push((idx / tar_fps) as u8);
+                rt.insert((idx / tar_fps) as u8);
             }
         }
-        (tar_fps, rt)
+        (tar_fps as u8, rt)
     }
 }
 
 use crate::data::Package;
 use ffmpeg_next as ffmpeg;
+use std::collections::HashSet;
 
 pub fn process(input: &str, output: &str) {
     let pkg = ffmpeg_job(input);
@@ -98,12 +103,30 @@ fn ffmpeg_job(filename: &str) -> Package {
     // TODO
     ffmpeg::init().unwrap();
     let mut ictx = ffmpeg::format::input(&filename).unwrap();
-    let input = ictx
-        .streams()
-        .best(ffmpeg::media::Type::Video)
+    // audio
+    if let Some(_audio) = ictx.streams().best(ffmpeg::media::Type::Audio) {
+        let audio_index = _audio.index();
+    }
+
+    // video
+    let _video = ictx.streams().best(ffmpeg::media::Type::Video)
         .unwrap();
-    let video_index = input.index();
-    let context_decoder = ffmpeg::codec::context::Context::from_parameters(input.parameters())
+    let video_index = _video.index();
+
+    // get fps
+    let fps_idx: HashSet<u8>;
+    let ori_fps = |x: ffmpeg::Rational| -> u8 {
+        if x.1 == 1 {
+            return x.0 as u8;
+        }
+        else {
+            return (x.0 / x.1) as u8;
+        }
+    }(_video.rate());
+    (fps, fps_idx) = tools::rate_adjust(ori_fps as u16, 24);
+
+    // TODO
+    let context_decoder = ffmpeg::codec::context::Context::from_parameters(_video.parameters())
         .unwrap();
     let mut decoder = context_decoder.decoder()
         .video()
@@ -118,6 +141,5 @@ fn ffmpeg_job(filename: &str) -> Package {
             ffmpeg::software::scaling::flag::Flags::BILINEAR,)
         .unwrap();
 
-    fps = 24;
     Package::new(fps, width, height, num_per_frame, nodes)
 }
