@@ -90,11 +90,11 @@ use ffmpeg_next as ffmpeg;
 use std::collections::HashSet;
 
 pub fn process(input: &str, output: &str) {
-    let pkg = ffmpeg_job(input);
+    let pkg = ffmpeg_job(input, output);
     crate::data::pack(pkg, output);
 }
 
-fn ffmpeg_job(filename: &str) -> Package {
+fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
     let fps: u8;
     let (width, height) = termion::terminal_size().unwrap();
     let mut num_per_frame: Vec<u32> = Vec::new();
@@ -106,6 +106,7 @@ fn ffmpeg_job(filename: &str) -> Package {
     // audio
     if let Some(_audio) = ictx.streams().best(ffmpeg::media::Type::Audio) {
         let audio_index = _audio.index();
+        save_audio(output_dir);
     }
 
     // video
@@ -142,4 +143,8 @@ fn ffmpeg_job(filename: &str) -> Package {
         .unwrap();
 
     Package::new(fps, width, height, num_per_frame, nodes)
+}
+
+fn save_audio(output_dir: &str) {
+    // TODO
 }
