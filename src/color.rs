@@ -1,6 +1,7 @@
 use binrw::binrw;
 
 #[binrw]
+#[derive(PartialEq, Clone)]
 pub enum Color {
     #[brw(magic(0u8))]
     Rgb([u8; 3]),

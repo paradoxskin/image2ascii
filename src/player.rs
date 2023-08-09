@@ -6,6 +6,7 @@ use termion::raw::IntoRawMode;
 use std::io::Write;
 
 #[binrw]
+#[derive(Clone)]
 pub struct Node {
     node_col: crate::color::Color,
     node_style: u8,
@@ -32,6 +33,18 @@ impl Node {
     fn get_pos(&self) -> (u16, u16) {
         self.pos
     }
+    pub fn set_xy(&mut self, x: u16, y: u16) {
+        self.pos = (x, y);
+    }
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Node) -> bool {
+        if self.node_col == other.node_col && self.node_style == other.node_style {
+            return true;
+        }
+        false
+    }
 }
 
 pub struct NodeQue {
@@ -53,6 +66,7 @@ impl NodeQue {
     pub fn add_back(&mut self, a_frame: Vec<Node>) {
         self.queue.push_back(a_frame);
     }
+
 }
 
 struct PNode {
@@ -187,8 +201,9 @@ pub fn is_img(filename: &str, s_width: u16, s_height: u16) -> Option<NodeQue> {
         if let Ok(img) = file.decode() {
             let mut node_que = NodeQue::new();
             // TODO color option
-            let tmp = crate::reader::tools::img2asc(img, s_width, s_height, 2);
-            node_que.add_back(tmp);
+            // TODO! change method of img2asc
+            //let tmp = crate::reader::tools::img2asc(img, s_width, s_height, 2);
+            //node_que.add_back(tmp);
             return Some(node_que);
         }
     }
