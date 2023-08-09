@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use binrw::binrw;
 use crate::data;
-use image::io::Reader;
 use termion::raw::IntoRawMode;
 use std::io::Write;
 
@@ -177,7 +176,7 @@ impl Player {
 pub fn play(filename: &str) {
     let (s_width, s_height) = termion::terminal_size().unwrap();
     let o_player: Option<Player>;
-    match is_img(filename, s_width, s_height) {
+    match crate::reader::is_img(filename, s_width, s_height) {
         None => {
             let pkg = data::unpack(filename);
             let (fps, width, height) = pkg.get_config();
@@ -194,18 +193,4 @@ pub fn play(filename: &str) {
         return;
     }
     println!("screen too small ~\nrebuild the origin video\n\n{}", crate::HELP);
-}
-
-pub fn is_img(filename: &str, s_width: u16, s_height: u16) -> Option<NodeQue> {
-    if let Ok(file) = Reader::open(filename) {
-        if let Ok(img) = file.decode() {
-            let mut node_que = NodeQue::new();
-            // TODO color option
-            // TODO! change method of img2asc
-            //let tmp = crate::reader::tools::img2asc(img, s_width, s_height, 2);
-            //node_que.add_back(tmp);
-            return Some(node_que);
-        }
-    }
-    None
 }

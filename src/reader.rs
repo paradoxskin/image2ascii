@@ -1,7 +1,6 @@
 pub mod tools {
     use crate::player::Node;
     use crate::color::Color;
-    use image::GenericImageView;
     use std::collections::HashSet;
 
     fn rgb2dep(r: u8, g: u8, b: u8) -> u8 {
@@ -19,7 +18,7 @@ pub mod tools {
     pub fn get_tran_size(img_w: u32, img_h: u32, width: u16, height: u16) -> (u32, u32) {
         let img_h = img_h / 2;
         let mut ww = width as u32;
-        let mut hh = height as u32 / img_w;
+        let mut hh = img_h * width as u32 / img_w;
 		if hh > height as u32 {
 			hh = height as u32;
 			ww = img_w * height as u32 / img_h;
@@ -61,7 +60,7 @@ pub mod tools {
     }
 
     // TODO fuck your CPU
-    pub fn img2asc_threads(img: image::DynamicImage, width: u16, height: u16) -> Vec<Node> {
+    pub fn img2asc_threads(frame: Vec<u8>, color_flag: u8) -> Vec<Node> {
         let mut asc: Vec<Node> = Vec::new();
         asc
     }
@@ -146,16 +145,16 @@ fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
                     let mut trans_frame = ffmpeg::util::frame::Video::empty();
                     scaler.run(&mut decoded, &mut trans_frame).unwrap();
                     let trans_data = Vec::from(trans_frame.data(0));
+                    // color mod
                     let now = tools::img2asc(trans_data, 1);
-                    // TODO difference between last and now
+                    let all_len = now.len() / tran_h as usize;
                     let mut p_count = 0;
                     if let Some(last_frame) = &mut last {
-                        for x in 0..tran_w {
-                            for y in 0..tran_h {
-                                let idx = (y * tran_w + x) as usize;
+                        for x in 0..tran_w as usize {
+                            for y in 0..tran_h as usize {
+                                let idx = y * all_len + x;
                                 let mut now_node = now[idx].clone();
-                                let last_node = last_frame.get(idx).unwrap().to_owned();
-                                if now_node != last_node {
+                                if now_node != last_frame[idx] {
                                     now_node.set_xy(x as u16, y as u16);
                                     nodes.push(now_node);
                                     p_count += 1;
@@ -164,9 +163,9 @@ fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
                         }
                     }
                     else { // first frame
-                        for x in 0..tran_w {
-                            for y in 0..tran_h {
-                                let idx = (y * tran_w + x) as usize;
+                        for x in 0..tran_w as usize {
+                            for y in 0..tran_h as usize {
+                                let idx = y * all_len + x;
                                 let mut now_node = now[idx].clone();
                                 now_node.set_xy(x as u16, y as u16);
                                 nodes.push(now_node);
@@ -183,10 +182,61 @@ fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
         }
     }
 
-
     Package::new(fps, width, height, num_per_frame, nodes)
 }
 
 fn save_audio(output_dir: &str) {
     // TODO
+}
+
+pub fn is_img(filename: &str, s_width: u16, s_height: u16) -> Option<crate::player::NodeQue> {
+    ffmpeg::init();
+    if let Ok(mut ictx) = ffmpeg::format::input(&filename) {
+        let mut node_que = crate::player::NodeQue::new();
+
+        let _video = ictx.streams().best(ffmpeg::media::Type::Video)
+            .unwrap();
+        let video_index = _video.index();
+        let context_decoder = ffmpeg::codec::context::Context::from_parameters(_video.parameters())
+            .unwrap();
+        let mut decoder = context_decoder.decoder()
+            .video()
+            .unwrap();
+        let (img_w, img_h) = (decoder.width(), decoder.height());
+        let (tran_w, tran_h) = tools::get_tran_size(img_w, img_h, s_width, s_height);
+        let mut scaler = ffmpeg::software::scaling::Context::get(
+                decoder.format(),
+                img_w,
+                img_h,
+                ffmpeg::format::Pixel::RGB24,
+                tran_w,
+                tran_h,
+                ffmpeg::software::scaling::flag::Flags::BILINEAR).unwrap();
+        for (stream, mut packet) in ictx.packets() {
+            if stream.index() == video_index {
+                decoder.send_packet(&mut packet).unwrap();
+                let mut decoded = ffmpeg::util::frame::Video::empty();
+                while decoder.receive_frame(&mut decoded).is_ok() {
+                    let mut nodes = Vec::<crate::player::Node>::new();
+                    let mut trans_frame = ffmpeg::util::frame::Video::empty();
+                    scaler.run(&mut decoded, &mut trans_frame).unwrap();
+                    let trans_data = Vec::from(trans_frame.data(0));
+                    // color mode
+                    let now = tools::img2asc(trans_data, 1);
+                    let all_len = now.len() / tran_h as usize;
+                    for x in 0..tran_w as usize {
+                        for y in 0..tran_h as usize {
+                            let idx = y * all_len as usize + x;
+                            let mut now_node = now[idx].clone();
+                            now_node.set_xy(x as u16, y as u16);
+                            nodes.push(now_node);
+                        }
+                    }
+                    node_que.add_back(nodes);
+                }
+            }
+        }
+        return Some(node_que);
+    }
+    None
 }

@@ -1,4 +1,3 @@
-mod utils;
 mod player;
 mod reader;
 mod color;
