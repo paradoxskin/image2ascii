@@ -81,10 +81,6 @@ impl PNode {
         }
     }
 
-    fn same_with(&self, node: &Node) -> bool {
-        self.style == node.get_node_style() && self.node_col == node.get_node_col()
-    }
-
     fn change_to(&mut self, node: &Node) {
         self.node_col = node.get_node_col();
         self.style = node.get_node_style();
@@ -93,7 +89,6 @@ impl PNode {
 
 struct Screen {
     width: u16,
-    height: u16,
     screen: Vec<PNode>
 }
 
@@ -107,7 +102,6 @@ impl Screen {
         }
         Self {
             width,
-            height,
             screen,
         }
     }
@@ -120,8 +114,6 @@ impl Screen {
 pub struct Player {
     // music and images
     fps: u8,
-    width: u16,
-    height: u16,
     screen: Screen,
     node_que: NodeQue,
 }
@@ -134,8 +126,6 @@ impl Player {
         let screen = Screen::new(width, height);
         Some(Self {
             fps,
-            width,
-            height,
             screen,
             node_que
         })

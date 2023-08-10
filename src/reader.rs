@@ -60,10 +60,10 @@ pub mod tools {
     }
 
     // TODO fuck your CPU
-    pub fn img2asc_threads(frame: Vec<u8>, color_flag: u8) -> Vec<Node> {
-        let mut asc: Vec<Node> = Vec::new();
-        asc
-    }
+    //pub fn img2asc_threads(frame: Vec<u8>, color_flag: u8) -> Vec<Node> {
+    //    let asc: Vec<Node> = Vec::new();
+    //    asc
+    //}
 
     /// ori_fps -> tar_fps, not change when ori_fps < tar_fps
     /// return (fps, SHOULD_READ_FRAME_SET)
@@ -94,7 +94,7 @@ pub fn process(input: &str, output: &str) {
     crate::data::pack(pkg, output);
 }
 
-fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
+fn ffmpeg_job(filename: &str, output_path: &str) -> Package {
     let fps: u8;
     let (width, height) = termion::terminal_size().unwrap();
     let mut num_per_frame: Vec<u32> = Vec::new();
@@ -105,7 +105,8 @@ fn ffmpeg_job(filename: &str, output_dir: &str) -> Package {
     // audio TODO
     if let Some(_audio) = ictx.streams().best(ffmpeg::media::Type::Audio) {
         let audio_index = _audio.index();
-        save_audio(output_dir);
+        let output_path = format!("{}.wav", output_path);
+        save_audio(&output_path);
     }
 
     // video
@@ -190,7 +191,7 @@ fn save_audio(output_dir: &str) {
 }
 
 pub fn is_img(filename: &str, s_width: u16, s_height: u16) -> Option<crate::player::NodeQue> {
-    ffmpeg::init();
+    ffmpeg::init().unwrap();
     if let Ok(mut ictx) = ffmpeg::format::input(&filename) {
         let mut node_que = crate::player::NodeQue::new();
 

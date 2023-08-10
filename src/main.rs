@@ -4,10 +4,9 @@ mod color;
 mod data;
 
 use std::env;
-use std::fs;
 
 pub const HELP: &str = "Usage of image2ascii:
-        -f file_path [output_dir_path] (default under same dir)
+        -f file_path [output_file_path] (default under same dir)
         -p play_file_path";
 
 fn main() {
@@ -18,42 +17,26 @@ fn main() {
     }
     match args[1].as_str() {
         "-f" => {
-            let get_from_vec = args.get(2);
-            if let Some(path)  = get_from_vec {
-                let file_path = path.as_str();
-                let out_path: &str;
+            let opt_in_path = args.get(2);
+            if let Some(in_path)  = opt_in_path {
+                let file_path = in_path.to_owned();
 
-                let get_from_vec = args.get(3);
-                if let Some(path) = get_from_vec {
-                    out_path = path;
+                let out_path: String;
+
+                let opt_out_path = args.get(3);
+                if let Some(path) = opt_out_path {
+                    out_path = path.to_owned();
                 }
                 else {
-					let parent = std::path::Path::new(file_path).parent();
-					if let Some(pa) = parent {
-						if let Some(past) = pa.to_str() {
-							out_path = past;
-						}
-						else {
-							println!("Can't Set the Default Dir!\n\n{}", HELP);
-							return;
-						}
-					}
-					else {
-						println!("Can't Set the Default Dir!\n\n{}", HELP);
-						return;
-					}
+					out_path = format!("{}.i2a", file_path);
                 }
 
-				if !std::path::Path::new(file_path).exists() {
+				if !std::path::Path::new(&file_path).exists() {
 					println!("Path Not Exists!\n\n{}", HELP);
 					return;
 				}
-				if !std::path::Path::new(out_path).exists() {
-					println!("Parent Dir Not Exists or Can't Open!\n\n{}", HELP);
-					return;
-				}
 
-                crate::reader::process(file_path, out_path);
+                crate::reader::process(&file_path, &out_path);
             }
             else {
                 println!("Need Path!\n\n{}", HELP);
@@ -62,9 +45,9 @@ fn main() {
         "-p" => {
             let get_from_vec = args.get(2);
             if let Some(path)  = get_from_vec {
-                let file_path = path;
+                let file_path = path.to_owned();
 
-                crate::player::play(file_path);
+                crate::player::play(&file_path);
             }
             else {
                 println!("Need Play Path!\n\n{}", HELP);
