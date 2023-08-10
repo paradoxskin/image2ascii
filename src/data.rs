@@ -54,6 +54,7 @@ impl Package {
 pub fn pack(package: Package, output_path: &str) {
     let mut buf = Cursor::new(Vec::<u8>::new());
     package.write(&mut buf).unwrap();
+    buf.set_position(0);
 
     let mut encoder = flate2::bufread::DeflateEncoder::new(buf, flate2::Compression::best());
     let mut encoded_buf = Vec::new();
